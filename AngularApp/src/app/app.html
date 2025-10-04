@@ -1,13 +1,12 @@
 <div style="padding:16px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial">
-  <h2>Angular ⇄ MAUI</h2>
+  <h2>Angular ⇄ MAUI (protocol)</h2>
 
-  <div style="display:flex; gap:8px; margin:12px 0">
-    <button (click)="sendToMaui()">Отправить в MAUI</button>
-    <button (click)="clearMessages()">Очистить</button>
+  <div style="display:flex; gap:8px; margin:12px 0; flex-wrap:wrap">
+    <button (click)="sendPing()">Ping MAUI</button>
+    <button (click)="requestDeviceInfo()">Get Device Info</button>
   </div>
 
   <h3>Сообщения</h3>
-
   @if (messages.length) {
     <ul style="line-height:1.6; margin: 8px 0 0">
       @for (m of messages; track $index) {
@@ -15,6 +14,6 @@
       }
     </ul>
   } @else {
-    <div style="opacity:0.7">Пока сообщений нет. Нажми кнопку выше или отправь из MAUI.</div>
+    <div style="opacity:0.7">Пока сообщений нет.</div>
   }
 </div>
