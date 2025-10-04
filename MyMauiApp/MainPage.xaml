@@ -1,21 +1,28 @@
 ﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="MyMauiApp.MainPage">
+             x:Class="MyMauiApp.MainPage"
+             Title="MAUI × Angular">
 
-    <VerticalStackLayout Spacing="20" Padding="20">
-        <Label Text="MAUI + Angular WebView "
-               FontSize="20"
-               HorizontalOptions="Center" />
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Обновить" Clicked="OnRefreshClicked" />
+    </ContentPage.ToolbarItems>
 
-        <Button Text="Отправить в Angular"
-                Clicked="OnSendToAngularClicked" />
+    <Grid RowDefinitions="Auto, *" Padding="16">
+        <VerticalStackLayout Spacing="12">
+            <Label Text="MAUI + Angular WebView" FontSize="20" />
+            <Button Text="Отправить в Angular (notify)" Clicked="OnSendToAngularClicked" />
+            <Grid>
+                <ActivityIndicator x:Name="spinner" IsVisible="False" IsRunning="False"
+                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+        </VerticalStackLayout>
 
-        <!-- Dev: грузим Angular dev-server -->
         <WebView x:Name="webView"
+                 Grid.Row="1"
                  HeightRequest="600"
                  WidthRequest="800"
                  Source="http://localhost:4200"
                  Navigating="OnWebViewNavigating"
                  Navigated="OnWebViewNavigated" />
-    </VerticalStackLayout>
+    </Grid>
 </ContentPage>

@@ -1,19 +1,61 @@
-<div style="padding:16px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial">
-  <h2>Angular ⇄ MAUI (protocol)</h2>
+<div style="padding:20px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; max-width: 920px; margin: 0 auto">
+  <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+    <h2 style="margin:0">MAUI × Angular — Dashboard</h2>
+    <span
+      [title]="isMauiWebView ? 'Работаем внутри MAUI WebView' : 'Открыто в браузере'"
+      [style]="
+        'padding:6px 10px;border-radius:999px;font-size:12px;' +
+        (isMauiWebView ? 'background:#e6ffed;color:#057a55;border:1px solid #9ae6b4' :
+                          'background:#fff5f5;color:#9b2c2c;border:1px solid #feb2b2')
+      ">
+      {{ isMauiWebView ? 'MAUI WebView' : 'Browser tab' }}
+    </span>
+  </header>
 
-  <div style="display:flex; gap:8px; margin:12px 0; flex-wrap:wrap">
-    <button (click)="sendPing()">Ping MAUI</button>
-    <button (click)="requestDeviceInfo()">Get Device Info</button>
-  </div>
+  <section style="display:grid; gap:12px; grid-template-columns: 1.2fr 1fr;">
+    <!-- Лог -->
+    <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+        <h3 style="margin:0">Сообщения</h3>
+        <button (click)="clearLog()">Очистить</button>
+      </div>
+      <div style="height:320px; overflow:auto; background:#fafafa; border-radius:8px; padding:10px; border:1px solid #eee">
+        @if (messages.length) {
+          <ul style="margin:0; padding-left:18px; line-height:1.6">
+            @for (m of messages; track $index) {
+              <li>{{ m }}</li>
+            }
+          </ul>
+        } @else {
+          <div style="opacity:.7">Лог пуст. Нажми на кнопки справа.</div>
+        }
+      </div>
+    </div>
 
-  <h3>Сообщения</h3>
-  @if (messages.length) {
-    <ul style="line-height:1.6; margin: 8px 0 0">
-      @for (m of messages; track $index) {
-        <li>{{ m }}</li>
-      }
-    </ul>
-  } @else {
-    <div style="opacity:0.7">Пока сообщений нет.</div>
-  }
+    <!-- Действия/статус -->
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px">
+        <h3 style="margin-top:0">Действия</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button (click)="ping()">Ping MAUI</button>
+          <button (click)="getDevice()">Get Device Info</button>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px">
+          <input [(ngModel)]="customText" placeholder="Сообщение для MAUI" style="flex:1; padding:6px 8px" />
+          <button (click)="sendCustom()">Send</button>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px">
+        <h3 style="margin-top:0">Статус</h3>
+        <div style="margin-top:6px">
+          Устройство: <b>{{ deviceInfo?.platform || '—' }}</b>
+          @if (deviceInfo?.osVersion) {
+            <span>&nbsp;{{ deviceInfo?.osVersion }}</span>
+          }
+        </div>
+
+      </div>
+    </div>
+  </section>
 </div>
