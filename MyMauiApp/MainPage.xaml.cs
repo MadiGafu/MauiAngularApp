@@ -89,16 +89,12 @@ public partial class MainPage : ContentPage
     // ----- helpers -----
     private static string ExtractBase64FromMauiUrl(string url)
     {
-        // Принимаем ВСЕ варианты:
-        // 1) maui://<base64>                (host = base64)  <-- рекомендуемый
-        // 2) maui://bridge/<base64>         (path payload)
-        // 3) maui://bridge?m=<base64>       (query payload)
-
+        
         // убираем схему
         var s = url.Substring("maui://".Length); // может быть "<base64>" ИЛИ "bridge/..." ИЛИ "bridge?..."
         if (string.IsNullOrWhiteSpace(s)) return string.Empty;
 
-        // --- Вариант 1: host = base64 ---
+        // ---  host = base64 ---
         // host — это до первого '/'
         var firstSlash = s.IndexOf('/');
         var host = firstSlash >= 0 ? s.Substring(0, firstSlash) : s;
@@ -109,7 +105,7 @@ public partial class MainPage : ContentPage
             return hostDecoded; // это и есть base64
         }
 
-        // --- Вариант 2: query m=... ---
+        // ---  query m=... ---
         var qMark = s.IndexOf('?');
         if (qMark >= 0 && qMark + 1 < s.Length)
         {
@@ -122,7 +118,7 @@ public partial class MainPage : ContentPage
             }
         }
 
-        // --- Вариант 3: path после "bridge/" ---
+        // ---  path после "bridge/" ---
         if (host.Equals("bridge", StringComparison.OrdinalIgnoreCase) && firstSlash >= 0)
         {
             var rest = s[(firstSlash + 1)..]; // то, что после "bridge/"
