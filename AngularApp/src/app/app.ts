@@ -21,27 +21,31 @@ declare global {
 export class AppComponent implements OnInit {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
-  env = 'Browser tab';
+  env = 'Webový prohlížeč';
   messages: string[] = [];
 
   constructor(private zone: NgZone) {}
 
   ngOnInit(): void {
     if (!this.isBrowser) return;
-    this.env = window.__IS_MAUI_WEBVIEW__ ? 'MAUI WebView' : 'Browser tab';
+    const isMauiWebView =
+      window.__IS_MAUI_WEBVIEW__ ||
+      window.location.protocol === 'file:' ||
+      window.location.hostname === 'appassets.example';
+    this.env = isMauiWebView ? 'Aplikace MAUI' : 'Webový prohlížeč';
 
-    // Простой канал уведомлений из MAUI (оставляем для нативных ответов)
     window.receiveMessage = (text: string) => {
-      this.zone.run(() => this.messages.push(`из MAUI: ${text}`));
+      this.zone.run(() => this.messages.push(`Z MAUI: ${text}`));
     };
 
-    // Структурированные ответы из MAUI (понадобится для нативного save/open и т.д.)
     window.angularReceiveStructured = (b64: string) => {
       try {
         const json = decodeURIComponent(escape(atob(b64)));
         const data = JSON.parse(json);
-        this.zone.run(() => this.messages.push(`из MAUI[data]: ${data.type || 'unknown'}`));
-      } catch {}
+        this.zone.run(() => this.messages.push(`Z MAUI [${data.type || 'neznámý typ'}]`));
+      } catch (error) {
+        console.error('Nepodařilo se zpracovat zprávu z MAUI.', error);
+      }
     };
   }
 }

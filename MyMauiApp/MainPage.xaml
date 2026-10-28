@@ -1,28 +1,32 @@
 ﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="MyMauiApp.MainPage"
-             Title="MAUI × Angular">
+             Title="Plánovač itinerářů">
 
     <ContentPage.ToolbarItems>
-        <ToolbarItem Text="Обновить" Clicked="OnRefreshClicked" />
+        <ToolbarItem Text="Obnovit" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto, *" Padding="16">
         <VerticalStackLayout Spacing="12">
-            <Label Text="MAUI + Angular WebView" FontSize="20" />
-            <Button Text="Отправить в Angular (notify)" Clicked="OnSendToAngularClicked" />
+            <Label Text="Plánovač itinerářů" FontSize="20" />
+            <Button Text="Odeslat zprávu do Angularu" Clicked="OnSendToAngularClicked" />
             <Grid>
                 <ActivityIndicator x:Name="spinner" IsVisible="False" IsRunning="False"
                                    HorizontalOptions="Center" VerticalOptions="Center"/>
             </Grid>
         </VerticalStackLayout>
 
-        <WebView x:Name="webView"
-                 Grid.Row="1"
-                 HeightRequest="600"
-                 WidthRequest="800"
-                 Source="http://localhost:4200"
-                 Navigating="OnWebViewNavigating"
-                 Navigated="OnWebViewNavigated" />
+        <Grid Grid.Row="1">
+            <WebView x:Name="webView"
+                     Loaded="OnWebViewLoaded"
+                     Navigating="OnWebViewNavigating"
+                     Navigated="OnWebViewNavigated" />
+            <Label x:Name="webViewError"
+                   IsVisible="False"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center"
+                   TextColor="Red" />
+        </Grid>
     </Grid>
 </ContentPage>

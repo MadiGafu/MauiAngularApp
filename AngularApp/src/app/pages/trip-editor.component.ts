@@ -8,26 +8,26 @@ import { Trip } from '../models/trip';
 @Component({
   selector: 'trip-editor',
   standalone: true,
-  imports: [RouterModule, FormsModule, NgFor],
+  imports: [RouterModule, FormsModule],
   template: `
   @if (trip) {
     <div style="display:flex; gap:16px; flex-wrap:wrap">
       <div style="flex:1; min-width:260px">
-        <h3>Основное</h3>
-        <label>Название<br><input [(ngModel)]="trip.title" /></label><br><br>
-        <label>Начало<br><input type="date" [(ngModel)]="trip.startDate" /></label><br><br>
-        <label>Конец<br><input type="date" [(ngModel)]="trip.endDate" /></label><br><br>
-        <label>Направления (через запятую)<br>
+        <h3>Základní údaje</h3>
+        <label>Název<br><input [(ngModel)]="trip.title" /></label><br><br>
+        <label>Začátek<br><input type="date" [(ngModel)]="trip.startDate" /></label><br><br>
+        <label>Konec<br><input type="date" [(ngModel)]="trip.endDate" /></label><br><br>
+        <label>Destinace (oddělené čárkou)<br>
           <input [(ngModel)]="destinationsStr" (change)="applyDestinations()"/>
         </label><br><br>
-        <label>Заметки<br><textarea rows="4" [(ngModel)]="trip.notes"></textarea></label>
+        <label>Poznámky<br><textarea rows="4" [(ngModel)]="trip.notes"></textarea></label>
       </div>
 
       <div style="flex:1; min-width:260px">
-        <h3>Задачи</h3>
+        <h3>Úkoly</h3>
         <div style="display:flex; gap:8px">
-          <input [(ngModel)]="newTask" placeholder="Добавить задачу" (keyup.enter)="addTask()"/>
-          <button (click)="addTask()">Добавить</button>
+          <input [(ngModel)]="newTask" placeholder="Nový úkol" (keyup.enter)="addTask()"/>
+          <button (click)="addTask()">Přidat</button>
         </div>
         <ul style="margin-top:8px; padding-left:18px">
           @for (t of trip.tasks; track t.id) {
@@ -40,25 +40,25 @@ import { Trip } from '../models/trip';
       </div>
 
       <div style="flex:1; min-width:260px">
-        <h3>Бюджет</h3>
-        Валюта: <input style="width:80px" [(ngModel)]="trip.budget!.currency"/><br><br>
-        План: <input type="number" [(ngModel)]="trip.budget!.planned"/> —
-        Потрачено: <input type="number" [(ngModel)]="trip.budget!.spent"/>
-        <div style="margin-top:8px">Остаток: <b>{{ (trip.budget!.planned || 0) - (trip.budget!.spent || 0) }}</b></div>
+        <h3>Rozpočet</h3>
+        Měna: <input style="width:80px" [(ngModel)]="trip.budget!.currency"/><br><br>
+        Plán: <input type="number" [(ngModel)]="trip.budget!.planned"/> —
+        Utraceno: <input type="number" [(ngModel)]="trip.budget!.spent"/>
+        <div style="margin-top:8px">Zbývá: <b>{{ (trip.budget!.planned || 0) - (trip.budget!.spent || 0) }}</b></div>
       </div>
     </div>
 
     <div style="margin-top:16px; display:flex; gap:8px">
-      <button (click)="save()">Сохранить</button>
-      <button (click)="back()">Назад к списку</button>
+      <button (click)="save()">Uložit</button>
+      <button (click)="back()">Zpět na itineráře</button>
     </div>
 
     <div style="margin-top:16px; border:1px dashed #ddd; padding:12px; border-radius:8px">
-      <h3 style="margin-top:0">Карта / Маршрут (плейсхолдер)</h3>
-      <div style="opacity:.7">web-карт и оптимизацию маршрута.</div>
+      <h3 style="margin-top:0">Mapa a trasa</h3>
+      <div style="opacity:.7">Vyhledávání míst a optimalizace trasy budou doplněny v dalších etapách.</div>
     </div>
   } @else {
-    <div>Поездка не найдена.</div>
+    <div>Itinerář nebyl nalezen.</div>
   }
   `
 })
@@ -108,7 +108,7 @@ export class TripEditorComponent implements OnInit {
   save() {
     if (!this.trip) return;
     this.store.upsert(this.trip);
-    alert('Сохранено');
+    alert('Itinerář byl uložen.');
   }
 
   back() { this.router.navigateByUrl('/'); }

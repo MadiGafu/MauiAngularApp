@@ -1,8 +1,13 @@
 ﻿using Microsoft.Maui.Controls;
 using Microsoft.Maui.Devices;
+using Microsoft.Maui.Storage;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+#if WINDOWS
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.Web.WebView2.Core;
+#endif
 
 namespace MyMauiApp;
 
@@ -11,14 +16,55 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
+#if ANDROID
+        webView.Source = "file:///android_asset/wwwroot/index.html";
+#elif IOS || MACCATALYST
+        var indexPath = Path.Combine(FileSystem.AppPackageDirectory, "wwwroot", "index.html");
+        webView.Source = new Uri(indexPath).AbsoluteUri;
+#endif
     }
+
+#if WINDOWS
+    private async void OnWebViewLoaded(object sender, EventArgs e)
+    {
+        try
+        {
+            var assetsDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            var indexPath = Path.Combine(assetsDirectory, "index.html");
+            if (!File.Exists(indexPath))
+            {
+                throw new FileNotFoundException("Soubor Angular index.html nebyl nalezen.", indexPath);
+            }
+
+            if (webView.Handler?.PlatformView is not WebView2 platformView)
+            {
+                throw new InvalidOperationException("Ovládací prvek WebView2 není připraven.");
+            }
+
+            await platformView.EnsureCoreWebView2Async();
+            await platformView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+                "window.__IS_MAUI_WEBVIEW__ = true;");
+            platformView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                "appassets.example",
+                assetsDirectory,
+                CoreWebView2HostResourceAccessKind.Allow);
+            webView.Source = "https://appassets.example/index.html";
+        }
+        catch (Exception ex)
+        {
+            ShowLoader(false);
+            webViewError.Text = $"Nepodařilo se připravit rozhraní: {ex.Message}";
+            webViewError.IsVisible = true;
+        }
+    }
+#endif
 
     private static string JsString(string s) => JsonSerializer.Serialize(s);
 
     // MAUI -> Angular notify
     private async void OnSendToAngularClicked(object sender, EventArgs e)
     {
-        var payload = new { type = "notify", payload = new { text = "Привет из MAUI 🚀" } };
+        var payload = new { type = "notify", payload = new { text = "Pozdrav z aplikace MAUI." } };
         await SendStructuredToAngular(payload);
     }
 
@@ -27,7 +73,6 @@ public partial class MainPage : ContentPage
         webView.Reload();
     }
 
-    // Показать лоадер при обычной навигации (не maui://)
     private void ShowLoader(bool on)
     {
         spinner.IsVisible = spinner.IsRunning = on;
@@ -36,13 +81,20 @@ public partial class MainPage : ContentPage
     private async void OnWebViewNavigated(object sender, WebNavigatedEventArgs e)
     {
         ShowLoader(false);
-        // флаг для Angular
+        if (e.Result != WebNavigationResult.Success)
+        {
+            webViewError.Text = $"Nepodařilo se načíst rozhraní ({e.Result}).";
+            webViewError.IsVisible = true;
+            return;
+        }
+
+        webViewError.IsVisible = false;
         await webView.EvaluateJavaScriptAsync("window.__IS_MAUI_WEBVIEW__ = true");
     }
 
     private async void OnWebViewNavigating(object sender, WebNavigatingEventArgs e)
     {
-        var url = e?.Url ?? string.Empty;
+        var url = e.Url ?? string.Empty;
 
         if (!url.StartsWith("maui://", StringComparison.OrdinalIgnoreCase))
         {
@@ -50,7 +102,6 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        // кастомная схема → перехватываем
         e.Cancel = true;
 
         try
@@ -58,7 +109,7 @@ public partial class MainPage : ContentPage
             var base64url = ExtractHostPayload(url);
             if (string.IsNullOrWhiteSpace(base64url))
             {
-                await SendStructuredToAngular(new { type = "notify", payload = new { text = "MAUI error: empty payload" } });
+                await SendStructuredToAngular(new { type = "notify", payload = new { text = "Chyba MAUI: prázdná zpráva." } });
                 return;
             }
 
@@ -86,22 +137,20 @@ public partial class MainPage : ContentPage
                     break;
 
                 case "notify":
-                    // опционально можно что-то сделать на стороне MAUI
-                    await SendStructuredToAngular(new { type = "notify", payload = new { text = "MAUI: notify принят" } });
+                    await SendStructuredToAngular(new { type = "notify", payload = new { text = "MAUI: zpráva byla přijata." } });
                     break;
 
                 default:
-                    await SendStructuredToAngular(new { type = "notify", payload = new { text = $"MAUI: неизвестный тип '{type}'" } });
+                    await SendStructuredToAngular(new { type = "notify", payload = new { text = $"MAUI: neznámý typ zprávy '{type}'." } });
                     break;
             }
         }
         catch (Exception ex)
         {
-            await SendStructuredToAngular(new { type = "notify", payload = new { text = $"MAUI error: {ex.Message}" } });
+            await SendStructuredToAngular(new { type = "notify", payload = new { text = $"Chyba MAUI: {ex.Message}" } });
         }
     }
 
-    // ===== helpers =====
     private async Task SendStructuredToAngular(object obj)
     {
         var json = JsonSerializer.Serialize(obj);
@@ -109,7 +158,6 @@ public partial class MainPage : ContentPage
         await webView.EvaluateJavaScriptAsync($"angularReceiveStructured({JsString(b64)})");
     }
 
-    // maui://<PAYLOAD>[/...]
     private static string ExtractHostPayload(string url)
     {
         var rest = url.Substring("maui://".Length);

@@ -12,7 +12,7 @@ export class TripStore {
   addEmpty(): Trip {
     const t: Trip = {
       id: crypto.randomUUID(),
-      title: 'Новая поездка',
+      title: 'Nový itinerář',
       startDate: new Date().toISOString().slice(0,10),
       endDate: new Date().toISOString().slice(0,10),
       destinations: [],

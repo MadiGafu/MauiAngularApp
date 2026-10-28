@@ -1,59 +1,38 @@
-# AngularApp
+# Plánovač itinerářů – Angular
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.1.
+Angularová část hybridní aplikace postavená na Angular CLI 20.3.1. Produkční sestavení se ukládá do `AngularApp/dist/maui-wwwroot` a MAUI je následně vloží do výsledného balíčku.
 
-## Development server
+## Vývoj Angularu
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Pro samostatný vývoj webového rozhraní lze spustit vývojový server:
 
 ```bash
-ng generate component component-name
+npm ci
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Vývojový server je určen pouze pro vývoj. K běhu sestavené desktopové aplikace není potřeba.
+
+## Sestavení desktopové aplikace
+
+Na počítači s nainstalovanými .NET MAUI workloady a Node.js nejprve nainstalujte npm závislosti:
 
 ```bash
-ng generate --help
+npm ci
 ```
 
-## Building
-
-To build the project run:
+Poté sestavte MAUI projekt:
 
 ```bash
-ng build
+dotnet build ..\MyMauiApp\MyMauiApp.csproj -f net10.0-windows10.0.19041.0
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+MSBuild při sestavení automaticky spustí produkční `ng build`, jeho statické soubory zahrne mezi MAUI assety a WebView otevře lokální `wwwroot/index.html`. Není proto nutné ručně spouštět `ng serve` ani konfigurovat adresu lokálního serveru.
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Testy
 
 ```bash
-ng test
+npm test -- --watch=false
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Rozhraní používá češtinu a hash routing, aby interní navigace fungovala i při načtení z lokálního balíčku.

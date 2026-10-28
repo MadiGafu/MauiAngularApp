@@ -12,6 +12,7 @@
 **/.angular/
 **/dist/
 **/tmp/
+MyMauiApp/Resources/Raw/wwwroot/
 npm-debug.log*
 yarn*.log
 pnpm-debug.log*
