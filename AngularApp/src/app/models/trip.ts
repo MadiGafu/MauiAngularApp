@@ -1,4 +1,4 @@
-import { ItineraryPlace } from './osm-place';
+import { ItineraryPlace, TripCity } from './osm-place';
 
 export interface Trip {
   id: string;
@@ -7,6 +7,7 @@ export interface Trip {
   endDate: string;    // ISO
   description?: string;
   imageUrl?: string;
+  city?: TripCity;
   destinations: string[]; // города/локации
   places?: ItineraryPlace[];
   notes?: string;

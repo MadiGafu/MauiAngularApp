@@ -5,7 +5,7 @@ namespace MyMauiApp.Data;
 
 public sealed class TripDatabase
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -116,7 +116,21 @@ public sealed class TripDatabase
                 """;
             await migrateCommand.ExecuteNonQueryAsync();
             await transaction.CommitAsync();
-            return;
+            version = 2;
+        }
+
+        if (version == 2)
+        {
+            await using var transaction = await connection.BeginTransactionAsync();
+            var migrateCommand = connection.CreateCommand();
+            migrateCommand.Transaction = (SqliteTransaction)transaction;
+            migrateCommand.CommandText = """
+                ALTER TABLE Trips ADD COLUMN SelectedCityJson TEXT;
+                PRAGMA user_version = 3;
+                """;
+            await migrateCommand.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
+            version = 3;
         }
 
         if (version == CurrentSchemaVersion)
@@ -134,6 +148,7 @@ public sealed class TripDatabase
                 EndDate TEXT NOT NULL,
                 Description TEXT,
                 ImageUrl TEXT,
+                SelectedCityJson TEXT,
                 Notes TEXT,
                 BudgetCurrency TEXT,
                 BudgetPlanned REAL,
@@ -182,7 +197,7 @@ public sealed class TripDatabase
             CREATE INDEX IF NOT EXISTS IX_Tasks_TripId_Position
                 ON Tasks(TripId, Position);
 
-            PRAGMA user_version = 2;
+            PRAGMA user_version = 3;
             """;
         await schemaCommand.ExecuteNonQueryAsync();
     }
@@ -196,8 +211,8 @@ public sealed class TripDatabase
             var saveTrip = connection.CreateCommand();
             saveTrip.Transaction = (SqliteTransaction)transaction;
             saveTrip.CommandText = """
-                INSERT INTO Trips (Id, Position, Title, StartDate, EndDate, Description, ImageUrl, Notes, BudgetCurrency, BudgetPlanned, BudgetSpent)
-                VALUES ($id, $position, $title, $startDate, $endDate, $description, $imageUrl, $notes, $currency, $planned, $spent)
+                INSERT INTO Trips (Id, Position, Title, StartDate, EndDate, Description, ImageUrl, SelectedCityJson, Notes, BudgetCurrency, BudgetPlanned, BudgetSpent)
+                VALUES ($id, $position, $title, $startDate, $endDate, $description, $imageUrl, $city, $notes, $currency, $planned, $spent)
                 ON CONFLICT(Id) DO UPDATE SET
                     Position = excluded.Position,
                     Title = excluded.Title,
@@ -205,6 +220,7 @@ public sealed class TripDatabase
                     EndDate = excluded.EndDate,
                     Description = excluded.Description,
                     ImageUrl = excluded.ImageUrl,
+                    SelectedCityJson = excluded.SelectedCityJson,
                     Notes = excluded.Notes,
                     BudgetCurrency = excluded.BudgetCurrency,
                     BudgetPlanned = excluded.BudgetPlanned,
@@ -217,6 +233,9 @@ public sealed class TripDatabase
             saveTrip.Parameters.AddWithValue("$endDate", trip.EndDate);
             saveTrip.Parameters.AddWithValue("$description", (object?)trip.Description ?? DBNull.Value);
             saveTrip.Parameters.AddWithValue("$imageUrl", (object?)trip.ImageUrl ?? DBNull.Value);
+            saveTrip.Parameters.AddWithValue("$city", trip.City is null
+                ? DBNull.Value
+                : JsonSerializer.Serialize(trip.City, JsonOptions));
             saveTrip.Parameters.AddWithValue("$notes", (object?)trip.Notes ?? DBNull.Value);
             saveTrip.Parameters.AddWithValue("$currency", (object?)trip.Budget?.Currency ?? DBNull.Value);
             saveTrip.Parameters.AddWithValue("$planned", (object?)trip.Budget?.Planned ?? DBNull.Value);
@@ -300,7 +319,7 @@ public sealed class TripDatabase
     {
         var trips = new List<TripDto>();
         var selectTrips = connection.CreateCommand();
-        selectTrips.CommandText = "SELECT Id, Title, StartDate, EndDate, Description, ImageUrl, Notes, BudgetCurrency, BudgetPlanned, BudgetSpent FROM Trips ORDER BY Position;";
+        selectTrips.CommandText = "SELECT Id, Title, StartDate, EndDate, Description, ImageUrl, SelectedCityJson, Notes, BudgetCurrency, BudgetPlanned, BudgetSpent FROM Trips ORDER BY Position;";
         await using (var reader = await selectTrips.ExecuteReaderAsync())
         {
             while (await reader.ReadAsync())
@@ -313,14 +332,18 @@ public sealed class TripDatabase
                     EndDate = reader.GetString(3),
                     Description = reader.IsDBNull(4) ? null : reader.GetString(4),
                     ImageUrl = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    Notes = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    Budget = reader.IsDBNull(7)
+                    City = reader.IsDBNull(6)
+                        ? null
+                        : JsonSerializer.Deserialize<CityDto>(reader.GetString(6), JsonOptions)
+                            ?? throw new JsonException("Uložené město itineráře má neplatný formát."),
+                    Notes = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    Budget = reader.IsDBNull(8)
                         ? null
                         : new BudgetDto
                         {
-                            Currency = reader.GetString(7),
-                            Planned = reader.IsDBNull(8) ? 0 : reader.GetDouble(8),
-                            Spent = reader.IsDBNull(9) ? 0 : reader.GetDouble(9),
+                            Currency = reader.GetString(8),
+                            Planned = reader.IsDBNull(9) ? 0 : reader.GetDouble(9),
+                            Spent = reader.IsDBNull(10) ? 0 : reader.GetDouble(10),
                         },
                 });
             }
@@ -404,11 +427,26 @@ public sealed class TripDatabase
         public string EndDate { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
+        public CityDto? City { get; set; }
         public List<string> Destinations { get; set; } = [];
         public List<PlaceDto> Places { get; set; } = [];
         public string? Notes { get; set; }
         public List<TaskDto> Tasks { get; set; } = [];
         public BudgetDto? Budget { get; set; }
+    }
+
+    private sealed class CityDto
+    {
+        public string OsmType { get; set; } = string.Empty;
+        public long OsmId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double[]? BoundingBox { get; set; }
+        public string? WikipediaPageTitle { get; set; }
+        public string? WikidataId { get; set; }
+        public WikipediaDto? Wikipedia { get; set; }
     }
 
     private sealed class PlaceDto

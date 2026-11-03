@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ItineraryPlace, OsmSearchResult } from '../models/osm-place';
+import { ItineraryPlace, OsmSearchResult, TripCity } from '../models/osm-place';
 
 @Injectable({ providedIn: 'root' })
 export class OpenStreetMapService {
@@ -10,7 +10,7 @@ export class OpenStreetMapService {
 
   constructor(private readonly http: HttpClient) {}
 
-  async search(query: string): Promise<OsmSearchResult[]> {
+  async search(query: string, extraParams: Record<string, string> = {}): Promise<OsmSearchResult[]> {
     const waitMs = this.lastRequestAt
       ? Math.max(0, 1000 - (Date.now() - this.lastRequestAt))
       : 0;
@@ -19,17 +19,41 @@ export class OpenStreetMapService {
     }
 
     this.lastRequestAt = Date.now();
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('q', query)
       .set('format', 'jsonv2')
       .set('addressdetails', '1')
       .set('extratags', '1')
       .set('namedetails', '1')
       .set('limit', '10');
+    for (const [name, value] of Object.entries(extraParams)) {
+      params = params.set(name, value);
+    }
 
     return firstValueFrom(
       this.http.get<OsmSearchResult[]>(this.searchUrl, { params }),
     );
+  }
+
+  async searchCities(query: string): Promise<OsmSearchResult[]> {
+    const results = await this.search(query, { featuretype: 'city' });
+    const supportedCityTypes = new Set(['city', 'town', 'village', 'municipality']);
+    return results.filter(result =>
+      (result.category === 'place' && supportedCityTypes.has(result.type)) ||
+      (result.category === 'boundary' && result.type === 'administrative'),
+    );
+  }
+
+  searchWithinCity(query: string, city: TripCity): Promise<OsmSearchResult[]> {
+    if (!city.boundingBox) {
+      return this.search(`${query}, ${city.name}`);
+    }
+
+    const [south, north, west, east] = city.boundingBox;
+    return this.search(query, {
+      viewbox: `${west},${north},${east},${south}`,
+      bounded: '1',
+    });
   }
 
   async findLinkedCzechWikipediaTitle(place: ItineraryPlace): Promise<string | null> {

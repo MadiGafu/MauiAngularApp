@@ -202,6 +202,25 @@ button:disabled {
   background: #fff;
 }
 
+.selected-city-card {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid #dce8df;
+  border-radius: 12px;
+  background: #f5faf6;
+}
+
+.selected-city-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.selected-city-heading h4 {
+  margin: 4px 0;
+}
+
 .places-map-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr);

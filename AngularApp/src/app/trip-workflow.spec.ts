@@ -112,10 +112,10 @@ describe('Itinerary workflow', () => {
       .querySelector<HTMLTextAreaElement>('textarea')!;
     const taskInput = editorElement.querySelector<HTMLInputElement>('input[placeholder="Nový úkol"]')!;
     const plannedBudgetInput = editorElement.querySelector<HTMLInputElement>('input[type="number"]')!;
-    const placeSearchInput =
-      editorElement.querySelector<HTMLInputElement>('input[placeholder="Např. muzeum nebo Praha"]')!;
-    const searchButton = Array.from(editorElement.querySelectorAll('button'))
-      .find(button => button.textContent?.includes('Hledat místa'))!;
+    const citySearchInput =
+      editorElement.querySelector<HTMLInputElement>('input[placeholder="Např. Praha nebo Paříž"]')!;
+    const citySearchButton = Array.from(editorElement.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Hledat město'))!;
 
     setValue(titleInput, 'Víkend v Praze');
     setValue(descriptionInput, 'Historické památky a dobré jídlo.');
@@ -123,21 +123,83 @@ describe('Itinerary workflow', () => {
     setValue(notesInput, 'Navštívit historické centrum');
     setValue(taskInput, 'Rezervovat vlak');
     setValue(plannedBudgetInput, '250');
+    setValue(citySearchInput, 'Praha');
+    citySearchButton.click();
+    const http = TestBed.inject(HttpTestingController);
+    const cityRequest = http.expectOne(request =>
+      request.url === 'https://nominatim.openstreetmap.org/search' &&
+      request.params.get('q') === 'Praha' &&
+      request.params.get('featuretype') === 'city' &&
+      request.params.get('format') === 'jsonv2',
+    );
+    cityRequest.flush([{
+      osm_type: 'relation',
+      osm_id: 435514,
+      name: 'Praha',
+      category: 'boundary',
+      type: 'administrative',
+      display_name: 'Praha, Česko',
+      lat: '50.087',
+      lon: '14.421',
+      boundingbox: ['49.94', '50.18', '14.22', '14.71'],
+      extratags: { wikipedia: 'cs:Praha', wikidata: 'Q1085' },
+    }, {
+      osm_type: 'node',
+      osm_id: 999,
+      name: 'Muzeum',
+      category: 'tourism',
+      type: 'museum',
+      display_name: 'Muzeum, Praha, Česko',
+      lat: '50.08',
+      lon: '14.42',
+    }]);
+    await harness.fixture.whenStable();
+    harness.fixture.detectChanges();
+    expect(editor.citySearchResults.length).toBe(1);
+
+    Array.from(editorElement.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Vybrat toto město'))!
+      .click();
+    const cityWikipediaRequest = http.expectOne(request =>
+      request.url === 'https://cs.wikipedia.org/w/api.php' &&
+      request.params.get('titles') === 'Praha',
+    );
+    cityWikipediaRequest.flush({
+      query: {
+        pages: {
+          '123': {
+            title: 'Praha',
+            extract: 'Praha je hlavní město Česka.',
+            fullurl: 'https://cs.wikipedia.org/wiki/Praha',
+          },
+        },
+      },
+    });
+    await harness.fixture.whenStable();
+    harness.fixture.detectChanges();
+    expect(editor.trip?.city?.wikipedia?.title).toBe('Praha');
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const placeSearchInput =
+      editorElement.querySelector<HTMLInputElement>('input[placeholder="Např. Louvre, Eiffelova věž nebo muzeum"]')!;
+    const searchButton = Array.from(editorElement.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Hledat místa ve městě'))!;
     searchButton.click();
     harness.fixture.detectChanges();
     expect(editorElement.querySelector('[role="alert"]')?.textContent)
-      .toContain('Zadejte název místa nebo města');
-    setValue(placeSearchInput, 'Praha');
+      .toContain('Zadejte název zajímavého místa');
+    setValue(placeSearchInput, 'muzeum');
     harness.fixture.detectChanges();
 
     searchButton.click();
-    const http = TestBed.inject(HttpTestingController);
     const searchRequest = http.expectOne(request =>
       request.url === 'https://nominatim.openstreetmap.org/search' &&
-      request.params.get('q') === 'Praha' &&
+      request.params.get('q') === 'muzeum' &&
       request.params.get('format') === 'jsonv2' &&
       request.params.get('extratags') === '1' &&
-      request.params.get('namedetails') === '1',
+      request.params.get('namedetails') === '1' &&
+      request.params.get('viewbox') === '14.22,50.18,14.71,49.94' &&
+      request.params.get('bounded') === '1',
     );
     searchRequest.flush([
       {
@@ -273,6 +335,11 @@ describe('Itinerary workflow', () => {
     expect(reopenedEditor.trip?.title).toBe('Víkend v Praze');
     expect(reopenedEditor.trip?.description).toBe('Historické památky a dobré jídlo.');
     expect(reopenedEditor.trip?.imageUrl).toBe('https://example.test/prague.jpg');
+    expect(reopenedEditor.trip?.city).toEqual(jasmine.objectContaining({
+      name: 'Praha',
+      boundingBox: [49.94, 50.18, 14.22, 14.71],
+      wikipedia: jasmine.objectContaining({ title: 'Praha' }),
+    }));
     expect(reopenedEditor.trip?.destinations).toEqual([]);
     expect(reopenedEditor.trip?.tasks[0].text).toBe('Rezervovat vlak');
     expect(reopenedEditor.trip?.places?.map(place => place.name)).toEqual([

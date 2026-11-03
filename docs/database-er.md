@@ -27,6 +27,7 @@ erDiagram
         TEXT end_date
         TEXT description
         TEXT image_url
+        TEXT selected_city_json
         TEXT notes
         TEXT budget_currency
         REAL budget_planned
@@ -75,5 +76,8 @@ erDiagram
 - Verze schématu je evidována pomocí `PRAGMA user_version`; nové změny schématu
   se budou přidávat jako navazující migrace.
 - Tabulka `TRIPS` uchovává také krátký popis projektu a URL titulního obrázku.
+- Tabulka `TRIPS` uchovává vybrané město včetně geografického ohraničení a článku
+  Wikipedie jako JSON; jeho hranice se používají k omezení hledání míst.
 - Při prvním otevření databáze se existující data z `localStorage` jednorázově
   importují. Původní data se odstraní z `localStorage` až po úspěšné odpovědi databáze.
+- Migrace schématu z verze 2 přidá uložené vybrané město projektu.

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
 import { TripStore } from '../store/trip.store';
 import { Trip } from '../models/trip';
-import { ItineraryPlace, OsmSearchResult } from '../models/osm-place';
+import { ItineraryPlace, OsmSearchResult, TripCity } from '../models/osm-place';
 import { MauiDatabaseService } from '../services/maui-database.service';
 import { OpenStreetMapService } from '../services/openstreetmap.service';
 import { OpenRouteService, PlannedRoute } from '../services/open-route.service';
@@ -88,35 +88,95 @@ import { WikipediaService } from '../services/wikipedia.service';
     </div>
 
     <section class="trip-planning-section">
-      <h3 style="margin-top:0">Zajímavá místa z OpenStreetMap</h3>
+      <h3 style="margin-top:0">1. Vyberte město</h3>
       <div style="display:flex; gap:8px; flex-wrap:wrap">
         <input
-          [(ngModel)]="placeQuery"
-          (keyup.enter)="searchPlaces()"
-          placeholder="Např. muzeum nebo Praha"
-          aria-label="Hledat místa nebo města"
+          [(ngModel)]="cityQuery"
+          (keyup.enter)="searchCities()"
+          placeholder="Např. Praha nebo Paříž"
+          aria-label="Hledat město"
         />
-        <button (click)="searchPlaces()" [disabled]="isSearching">
-          {{ isSearching ? 'Hledám…' : 'Hledat místa' }}
+        <button (click)="searchCities()" [disabled]="isSearchingCities">
+          {{ isSearchingCities ? 'Hledám města…' : 'Hledat město' }}
         </button>
       </div>
-      @if (searchMessage) {
-        <p role="status">{{ searchMessage }}</p>
+      @if (citySearchMessage) {
+        <p role="status">{{ citySearchMessage }}</p>
       }
-      @if (searchError) {
-        <p role="alert" style="color:#b00020">{{ searchError }}</p>
+      @if (citySearchError) {
+        <p role="alert" style="color:#b00020">{{ citySearchError }}</p>
       }
-      @if (searchResults.length) {
+      @if (citySearchResults.length) {
         <ul style="padding-left:18px">
-          @for (result of searchResults; track result.osm_type + result.osm_id) {
+          @for (result of citySearchResults; track result.osm_type + result.osm_id) {
             <li style="margin:12px 0">
               <strong>{{ result.name || result.display_name }}</strong>
-              <div>{{ result.category }} · {{ result.type }}</div>
               <small>{{ result.display_name }}</small><br>
-              <button (click)="addPlace(result)">Přidat do itineráře</button>
+              <button (click)="selectCity(result)">Vybrat toto město</button>
             </li>
           }
         </ul>
+      }
+      @if (trip.city; as city) {
+        <section class="selected-city-card" aria-label="Vybrané město">
+          <div class="selected-city-heading">
+            <div>
+              <p class="eyebrow">VYBRANÁ DESTINACE</p>
+              <h4>{{ city.name }}</h4>
+              <small>{{ city.address }}</small>
+            </div>
+            <button type="button" class="secondary-button" (click)="changeCity()">Změnit město</button>
+          </div>
+          @if (city.wikipedia) {
+            <p>{{ city.wikipedia.extract }}</p>
+            <small>
+              <a [href]="city.wikipedia.url" target="_blank" rel="noopener noreferrer">
+                {{ city.wikipedia.title }} – Wikipedia
+              </a>
+              · Text pod licencí
+              <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">
+                CC BY-SA 4.0
+              </a>.
+            </small>
+          } @else if (cityWikiLoading) {
+            <p role="status">Načítám informace o městě z Wikipedie…</p>
+          } @else if (cityWikiMessage) {
+            <p role="status">{{ cityWikiMessage }}</p>
+          }
+        </section>
+
+        <h3>2. Najděte místa ve městě {{ city.name }}</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <input
+            [(ngModel)]="placeQuery"
+            (keyup.enter)="searchPlaces()"
+            placeholder="Např. Louvre, Eiffelova věž nebo muzeum"
+            aria-label="Hledat zajímavá místa ve vybraném městě"
+          />
+          <button (click)="searchPlaces()" [disabled]="isSearching">
+            {{ isSearching ? 'Hledám místa…' : 'Hledat místa ve městě' }}
+          </button>
+        </div>
+        @if (searchMessage) {
+          <p role="status">{{ searchMessage }}</p>
+        }
+        @if (searchError) {
+          <p role="alert" style="color:#b00020">{{ searchError }}</p>
+        }
+        @if (searchResults.length) {
+          <ul style="padding-left:18px">
+            @for (result of searchResults; track result.osm_type + result.osm_id) {
+              <li style="margin:12px 0">
+                <strong>{{ result.name || result.display_name }}</strong>
+                <div>{{ result.category }} · {{ result.type }}</div>
+                <small>{{ result.display_name }}</small><br>
+                <button (click)="addPlace(result)">Přidat do itineráře</button>
+              </li>
+            }
+          </ul>
+        }
+      } @else {
+        <p class="field-hint">Po výběru města se zde zobrazí informace z Wikipedie a vyhledávání míst.</p>
       }
       <div class="places-map-layout">
         <section class="selected-places-panel">
@@ -233,6 +293,13 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly defaultCover = '/trip-cover.svg';
   trip?: Trip;
+  cityQuery = '';
+  citySearchResults: OsmSearchResult[] = [];
+  citySearchMessage = '';
+  citySearchError = '';
+  isSearchingCities = false;
+  cityWikiLoading = false;
+  cityWikiMessage = '';
   newTask = '';
   placeQuery = '';
   searchResults: OsmSearchResult[] = [];
@@ -411,8 +478,13 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   async searchPlaces() {
     const query = this.placeQuery.trim();
     if (this.isSearching) return;
+    const city = this.trip?.city;
+    if (!city) {
+      this.searchError = 'Nejprve vyberte město, ve kterém chcete hledat.';
+      return;
+    }
     if (!query) {
-      this.searchError = 'Zadejte název místa nebo města.';
+      this.searchError = 'Zadejte název zajímavého místa.';
       this.searchMessage = '';
       this.searchResults = [];
       return;
@@ -424,7 +496,7 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.searchResults = [];
 
     try {
-      this.searchResults = await this.openStreetMap.search(query);
+      this.searchResults = await this.openStreetMap.searchWithinCity(query, city);
       this.searchMessage = this.searchResults.length
         ? `Nalezeno míst: ${this.searchResults.length}.`
         : 'Pro zadaný dotaz nebyla nalezena žádná místa.';
@@ -433,6 +505,95 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       this.searchError = 'Místa se nepodařilo načíst. Zkontrolujte připojení k internetu a zkuste to znovu.';
     } finally {
       this.isSearching = false;
+    }
+  }
+
+  async searchCities() {
+    const query = this.cityQuery.trim();
+    if (this.isSearchingCities) return;
+    if (!query) {
+      this.citySearchError = 'Zadejte název města.';
+      this.citySearchMessage = '';
+      this.citySearchResults = [];
+      return;
+    }
+
+    this.isSearchingCities = true;
+    this.citySearchError = '';
+    this.citySearchMessage = '';
+    this.citySearchResults = [];
+    try {
+      this.citySearchResults = await this.openStreetMap.searchCities(query);
+      this.citySearchMessage = this.citySearchResults.length
+        ? `Nalezená města: ${this.citySearchResults.length}. Vyberte správné město.`
+        : 'Město nebylo nalezeno. Zkuste upravit dotaz.';
+    } catch (error) {
+      console.error('Vyhledávání měst v OpenStreetMap selhalo.', error);
+      this.citySearchError = 'Města se nepodařilo načíst. Zkontrolujte připojení k internetu a zkuste to znovu.';
+    } finally {
+      this.isSearchingCities = false;
+    }
+  }
+
+  selectCity(result: OsmSearchResult) {
+    if (!this.trip) return;
+    const linkedWikipediaPage = result.extratags?.wikipedia?.trim();
+    const wikipediaPageTitle = linkedWikipediaPage?.match(/^cs:(.+)$/i)?.[1]
+      ?.replace(/_/g, ' ')
+      .trim();
+    const boundingBox = result.boundingbox?.map(Number);
+    this.trip.city = {
+      osmType: result.osm_type,
+      osmId: result.osm_id,
+      name: result.namedetails?.['name:cs']?.trim()
+        || result.name?.trim()
+        || result.display_name.split(',')[0],
+      address: result.display_name,
+      latitude: Number(result.lat),
+      longitude: Number(result.lon),
+      ...(boundingBox?.length === 4 && boundingBox.every(Number.isFinite)
+        ? { boundingBox: boundingBox as [number, number, number, number] }
+        : {}),
+      ...(wikipediaPageTitle ? { wikipediaPageTitle } : {}),
+      ...(result.extratags?.wikidata ? { wikidataId: result.extratags.wikidata } : {}),
+    };
+    this.citySearchResults = [];
+    this.citySearchMessage = '';
+    this.cityWikiMessage = '';
+    this.placeQuery = '';
+    this.searchResults = [];
+    this.searchMessage = '';
+    this.searchError = '';
+    this.cityWikiLoading = true;
+    void this.loadCityWikipediaSummary();
+  }
+
+  changeCity() {
+    if (!this.trip) return;
+    this.trip.city = undefined;
+    this.cityWikiLoading = false;
+    this.cityWikiMessage = '';
+    this.searchResults = [];
+    this.searchMessage = '';
+    this.searchError = '';
+  }
+
+  private async loadCityWikipediaSummary() {
+    const city = this.trip?.city;
+    if (!city) return;
+    try {
+      const summary = await this.wikipedia.findSummary(city.name, city.wikipediaPageTitle);
+      if (this.trip?.city !== city) return;
+      city.wikipedia = summary ?? undefined;
+      this.cityWikiMessage = city.wikipedia
+        ? ''
+        : 'Český článek o tomto městě na Wikipedii nebyl nalezen.';
+    } catch (error) {
+      if (this.trip?.city !== city) return;
+      console.error(`Načtení článku Wikipedie pro město "${city.name}" selhalo.`, error);
+      this.cityWikiMessage = 'Informace z Wikipedie se nepodařilo načíst.';
+    } finally {
+      if (this.trip?.city === city) this.cityWikiLoading = false;
     }
   }
 

@@ -302,7 +302,28 @@ public partial class MainPage : ContentPage
             ".webp" => "image/webp",
             _ => throw new InvalidOperationException("Vyberte obrázek ve formátu JPG, PNG nebo WebP."),
         };
-        const long maximumImageSize = 12 * 1024 * 1024;
+        var isWindows = DeviceInfo.Platform == DevicePlatform.WinUI;
+        var maximumImageSize = isWindows ? 12L * 1024 * 1024 : 2L * 1024 * 1024;
+        await using var source = await image.OpenReadAsync();
+        if (!isWindows)
+        {
+            using var imageBytes = new MemoryStream();
+            var buffer = new byte[81920];
+            long totalBytes = 0;
+            int bytesRead;
+            while ((bytesRead = await source.ReadAsync(buffer)) > 0)
+            {
+                totalBytes += bytesRead;
+                if (totalBytes > maximumImageSize)
+                {
+                    throw new InvalidOperationException("Obrázek je příliš velký. Maximální velikost je 2 MB.");
+                }
+                await imageBytes.WriteAsync(buffer.AsMemory(0, bytesRead));
+            }
+
+            return $"data:{contentType};base64,{Convert.ToBase64String(imageBytes.ToArray())}";
+        }
+
         var imagesDirectory = Path.Combine(FileSystem.AppDataDirectory, "trip-images");
         Directory.CreateDirectory(imagesDirectory);
         var fileName = $"{Guid.NewGuid():N}{extension}";
@@ -311,7 +332,6 @@ public partial class MainPage : ContentPage
 
         try
         {
-            await using var source = await image.OpenReadAsync();
             await using var destination = new FileStream(
                 temporaryPath,
                 FileMode.CreateNew,
@@ -333,13 +353,8 @@ public partial class MainPage : ContentPage
             }
             await destination.FlushAsync();
 
-            if (DeviceInfo.Platform == DevicePlatform.WinUI)
-            {
-                return $"https://tripimages.example/{Uri.EscapeDataString(fileName)}";
-            }
-
-            var imageBytes = await File.ReadAllBytesAsync(temporaryPath);
-            return $"data:{contentType};base64,{Convert.ToBase64String(imageBytes)}";
+            File.Move(temporaryPath, destinationPath);
+            return $"https://tripimages.example/{Uri.EscapeDataString(fileName)}";
         }
         catch
         {
@@ -348,13 +363,6 @@ public partial class MainPage : ContentPage
                 File.Delete(temporaryPath);
             }
             throw;
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Move(temporaryPath, destinationPath);
-            }
         }
     }
 

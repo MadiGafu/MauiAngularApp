@@ -7,11 +7,25 @@ export interface OsmSearchResult {
   display_name: string;
   lat: string;
   lon: string;
+  boundingbox?: [string, string, string, string];
   extratags?: {
     wikipedia?: string;
     wikidata?: string;
   };
   namedetails?: Record<string, string>;
+}
+
+export interface TripCity {
+  osmType: string;
+  osmId: number;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  boundingBox?: [number, number, number, number];
+  wikipediaPageTitle?: string;
+  wikidataId?: string;
+  wikipedia?: WikipediaSummary;
 }
 
 export interface ItineraryPlace {
