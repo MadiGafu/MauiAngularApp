@@ -1,11 +1,11 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
 import { TripStore } from '../store/trip.store';
 import { Trip } from '../models/trip';
 import { ItineraryPlace, OsmSearchResult, TripCity } from '../models/osm-place';
-import { MauiDatabaseService } from '../services/maui-database.service';
+import { MauiBridgeService } from '../services/maui-bridge.service';
 import { OpenStreetMapService } from '../services/openstreetmap.service';
 import { OpenRouteService, PlannedRoute } from '../services/open-route.service';
 import { WikipediaService } from '../services/wikipedia.service';
@@ -288,8 +288,14 @@ import { WikipediaService } from '../services/wikipedia.service';
   }
   `
 })
-export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('routeMap') private routeMapElement?: ElementRef<HTMLDivElement>;
+export class TripEditorComponent implements OnInit, OnDestroy {
+  private routeMapElement?: ElementRef<HTMLDivElement>;
+
+  @ViewChild('routeMap')
+  set routeMap(element: ElementRef<HTMLDivElement> | undefined) {
+    this.routeMapElement = element;
+    this.initializeMap();
+  }
 
   readonly defaultCover = '/trip-cover.svg';
   trip?: Trip;
@@ -330,7 +336,7 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private store: TripStore,
-    private database: MauiDatabaseService,
+    private database: MauiBridgeService,
     private openStreetMap: OpenStreetMapService,
     private openRoute: OpenRouteService,
     private wikipedia: WikipediaService,
@@ -362,10 +368,6 @@ export class TripEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       this.trip.budget ||= { currency: 'EUR', planned: 0, spent: 0 };
       this.initializeMap();
     }
-  }
-
-  ngAfterViewInit() {
-    this.initializeMap();
   }
 
   private initializeMap() {

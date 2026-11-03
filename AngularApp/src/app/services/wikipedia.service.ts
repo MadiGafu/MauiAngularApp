@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { WikipediaSummary } from '../models/osm-place';
+import { MauiBridgeService } from './maui-bridge.service';
 
 interface WikipediaPage {
   title: string;
@@ -24,9 +25,16 @@ export class WikipediaService {
   private readonly apiUrl = 'https://cs.wikipedia.org/w/api.php';
   private readonly cache = new Map<string, WikipediaSummary | null>();
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly maui: MauiBridgeService,
+  ) {}
 
   async findSummary(placeName: string, linkedPageTitle?: string): Promise<WikipediaSummary | null> {
+    if (this.maui.isMaui) {
+      return this.maui.findWikipediaSummary(placeName, linkedPageTitle);
+    }
+
     const title = linkedPageTitle?.trim() || placeName.trim();
     const cacheKey = title.toLocaleLowerCase('cs-CZ');
     if (this.cache.has(cacheKey)) {

@@ -43,7 +43,7 @@ export class AppComponent implements OnInit {
         const json = decodeURIComponent(escape(atob(b64)));
         const data = JSON.parse(json);
         if (data.type === 'databaseResponse') {
-          window.dispatchEvent(new CustomEvent('maui-database-response', { detail: data }));
+          window.dispatchEvent(new CustomEvent('maui-bridge-response', { detail: data }));
           return;
         }
         this.zone.run(() => this.messages.push(`Z MAUI [${data.type || 'neznámý typ'}]`));

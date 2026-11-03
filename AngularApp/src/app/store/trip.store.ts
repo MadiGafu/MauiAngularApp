@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { Trip } from '../models/trip';
-import { MauiDatabaseService } from '../services/maui-database.service';
+import { MauiBridgeService } from '../services/maui-bridge.service';
 
 const KEY = 'itinerary.trips.v1';
 
@@ -13,7 +13,7 @@ export class TripStore {
   readonly error = signal<string | null>(null);
   readonly ready: Promise<void>;
 
-  constructor(private readonly database: MauiDatabaseService) {
+  constructor(private readonly database: MauiBridgeService) {
     this.ready = this.initialize();
     void this.ready.catch(() => undefined);
   }

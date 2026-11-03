@@ -2,13 +2,17 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ItineraryPlace, OsmSearchResult, TripCity } from '../models/osm-place';
+import { MauiBridgeService } from './maui-bridge.service';
 
 @Injectable({ providedIn: 'root' })
 export class OpenStreetMapService {
   private readonly searchUrl = 'https://nominatim.openstreetmap.org/search';
   private lastRequestAt = 0;
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly maui: MauiBridgeService,
+  ) {}
 
   async search(query: string, extraParams: Record<string, string> = {}): Promise<OsmSearchResult[]> {
     const waitMs = this.lastRequestAt
@@ -36,6 +40,10 @@ export class OpenStreetMapService {
   }
 
   async searchCities(query: string): Promise<OsmSearchResult[]> {
+    if (this.maui.isMaui) {
+      return this.maui.searchCities(query);
+    }
+
     const results = await this.search(query, { featuretype: 'city' });
     const supportedCityTypes = new Set(['city', 'town', 'village', 'municipality']);
     return results.filter(result =>
@@ -45,6 +53,15 @@ export class OpenStreetMapService {
   }
 
   searchWithinCity(query: string, city: TripCity): Promise<OsmSearchResult[]> {
+    if (this.maui.isMaui) {
+      if (!city.boundingBox) {
+        return Promise.reject(new Error('Vybrané město nemá platné geografické hranice.'));
+      }
+
+      const [south, north, west, east] = city.boundingBox;
+      return this.maui.searchPlaces(query, city.name, { south, north, west, east });
+    }
+
     if (!city.boundingBox) {
       return this.search(`${query}, ${city.name}`);
     }
@@ -57,6 +74,10 @@ export class OpenStreetMapService {
   }
 
   async findLinkedCzechWikipediaTitle(place: ItineraryPlace): Promise<string | null> {
+    if (this.maui.isMaui) {
+      return this.maui.findLinkedWikipediaTitle(place.osmType, place.osmId);
+    }
+
     const results = await this.search(place.address || place.name);
     const matchingPlace = results.find(result =>
       result.osm_type === place.osmType && result.osm_id === place.osmId,

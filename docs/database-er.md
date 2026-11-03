@@ -41,8 +41,8 @@ erDiagram
     }
 
     PLACES {
+        TEXT trip_id PK, FK
         TEXT id PK
-        TEXT trip_id FK
         INTEGER position
         TEXT osm_type
         INTEGER osm_id
@@ -72,6 +72,8 @@ erDiagram
 - Odstranění itineráře odstraní také jeho destinace, místa a úkoly (`ON DELETE CASCADE`).
 - Pořadí destinací, míst a úkolů je uloženo ve sloupci `position`.
 - OSM objekt je v rámci jednoho itineráře jednoznačný podle typu a OSM ID.
+- Identifikátor OSM objektu může být použit ve více itinerářích; primární klíč
+  tabulky `Places` je složený z `(TripId, Id)`.
 - Změna itineráře a přepsání jeho podřízených záznamů probíhá v jedné transakci.
 - Verze schématu je evidována pomocí `PRAGMA user_version`; nové změny schématu
   se budou přidávat jako navazující migrace.

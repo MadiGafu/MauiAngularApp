@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { LocationStrategy } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -8,6 +9,8 @@ import { IndexFileHashLocationStrategy } from './app-location.strategy';
 import { routes } from './app.routes';
 import { TripEditorComponent } from './pages/trip-editor.component';
 import { TripListComponent } from './pages/trip-list.component';
+import { MauiBridgeService } from './services/maui-bridge.service';
+import { OpenStreetMapService } from './services/openstreetmap.service';
 import { WikipediaService } from './services/wikipedia.service';
 import { TripStore } from './store/trip.store';
 
@@ -27,6 +30,7 @@ describe('Itinerary workflow', () => {
   });
 
   afterEach(() => {
+    delete window.__IS_MAUI_WEBVIEW__;
     localStorage.removeItem(storageKey);
     TestBed.resetTestingModule();
   });
@@ -72,6 +76,112 @@ describe('Itinerary workflow', () => {
     spyOn(window, 'alert');
     await editor.save();
     expect(store.byId(trip.id)?.imageUrl).toBe(editor.trip?.imageUrl);
+  });
+
+  it('keeps the same OSM place in separate itinerary records', async () => {
+    const store = TestBed.inject(TripStore);
+    const firstTrip = await store.addEmpty();
+    const secondTrip = await store.addEmpty();
+    const samePlace = {
+      id: 'node/98765',
+      osmType: 'node',
+      osmId: 98765,
+      name: 'Pražský hrad',
+      category: 'tourism · castle',
+      address: 'Pražský hrad, Praha, Česko',
+      latitude: 50.091,
+      longitude: 14.401,
+    };
+
+    await store.upsert({ ...firstTrip, places: [samePlace] });
+    await store.upsert({ ...secondTrip, places: [samePlace] });
+
+    expect(store.byId(firstTrip.id)?.places?.[0].id).toBe('node/98765');
+    expect(store.byId(secondTrip.id)?.places?.[0].id).toBe('node/98765');
+    const savedTrips = JSON.parse(localStorage.getItem(storageKey)!) as Array<{
+      id: string;
+      places: { id: string }[];
+    }>;
+    expect(savedTrips.filter(item => item.places.some(place => place.id === 'node/98765')).length)
+      .toBe(2);
+  });
+
+  it('initializes Leaflet when a saved itinerary loads after the map view', async () => {
+    const trip = {
+      id: 'delayed-trip',
+      title: 'Uložená cesta',
+      startDate: '2026-11-03',
+      endDate: '2026-11-04',
+      destinations: [],
+      places: [],
+      tasks: [],
+      budget: { currency: 'EUR', planned: 0, spent: 0 },
+    };
+    let resolveReady!: () => void;
+    const ready = new Promise<void>(resolve => { resolveReady = resolve; });
+    const delayedStore = {
+      loading: signal(true),
+      ready,
+      byId: jasmine.createSpy('byId').and.returnValue(trip),
+    };
+    TestBed.overrideProvider(TripStore, { useValue: delayedStore });
+
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(`/trip/${trip.id}`, TripEditorComponent);
+    harness.fixture.detectChanges();
+    expect(harness.routeNativeElement?.querySelector('.leaflet-container')).toBeNull();
+
+    resolveReady();
+    await harness.fixture.whenStable();
+    harness.fixture.detectChanges();
+
+    expect(harness.routeNativeElement?.querySelector('.leaflet-container')).not.toBeNull();
+  });
+
+  it('routes place and Wikipedia searches through the MAUI bridge in the desktop app', async () => {
+    window.__IS_MAUI_WEBVIEW__ = true;
+    const bridge = TestBed.inject(MauiBridgeService);
+    const place = {
+      osm_type: 'node',
+      osm_id: 98765,
+      name: 'Pražský hrad',
+      category: 'tourism',
+      type: 'castle',
+      display_name: 'Pražský hrad, Praha',
+      lat: '50.091',
+      lon: '14.401',
+    };
+    spyOn(bridge, 'searchCities').and.resolveTo([place]);
+    spyOn(bridge, 'searchPlaces').and.resolveTo([place]);
+    spyOn(bridge, 'findWikipediaSummary').and.resolveTo({
+      title: 'Pražský hrad',
+      extract: 'Historický hrad.',
+      url: 'https://cs.wikipedia.org/wiki/Pra%C5%BEsk%C3%BD_hrad',
+    });
+
+    const osm = TestBed.inject(OpenStreetMapService);
+    const city = {
+      osmType: 'relation',
+      osmId: 1,
+      name: 'Praha',
+      address: 'Praha, Česko',
+      latitude: 50.08,
+      longitude: 14.43,
+      boundingBox: [50, 50.2, 14.2, 14.7] as [number, number, number, number],
+    };
+    expect(await osm.searchCities('Praha')).toEqual([place]);
+    expect(await osm.searchWithinCity('hrad', city)).toEqual([place]);
+    expect(bridge.searchCities).toHaveBeenCalledWith('Praha');
+    expect(bridge.searchPlaces).toHaveBeenCalledWith('hrad', 'Praha', {
+      south: 50,
+      north: 50.2,
+      west: 14.2,
+      east: 14.7,
+    });
+
+    const summary = await TestBed.inject(WikipediaService).findSummary('Pražský hrad');
+    expect(summary?.title).toBe('Pražský hrad');
+    expect(bridge.findWikipediaSummary).toHaveBeenCalledWith('Pražský hrad', undefined);
   });
 
   it('creates, saves, reloads, and deletes an itinerary', async () => {

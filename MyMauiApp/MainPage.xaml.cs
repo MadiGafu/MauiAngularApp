@@ -2,6 +2,8 @@
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Storage;
 using MyMauiApp.Data;
+using PlacesLibrary.Models;
+using PlacesLibrary.Services;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
@@ -15,11 +17,14 @@ namespace MyMauiApp;
 
 public partial class MainPage : ContentPage
 {
+    private static readonly JsonSerializerOptions BridgeJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly TripDatabase _tripDatabase;
+    private readonly PlaceAggregator _placeAggregator;
 
-    public MainPage(TripDatabase tripDatabase)
+    public MainPage(TripDatabase tripDatabase, PlaceAggregator placeAggregator)
     {
         _tripDatabase = tripDatabase;
+        _placeAggregator = placeAggregator;
         InitializeComponent();
 #if ANDROID
         webView.Source = "file:///android_asset/wwwroot/index.html";
@@ -277,6 +282,71 @@ public partial class MainPage : ContentPage
                 });
                 break;
             }
+            case "searchCities":
+            {
+                var query = payload.GetProperty("query").GetString()
+                    ?? throw new JsonException("Chybí název hledaného města.");
+                var result = await _placeAggregator.SearchCitiesAsync(query);
+                await SendStructuredToAngular(new
+                {
+                    type = "databaseResponse",
+                    id = requestId,
+                    payload = new { result },
+                });
+                break;
+            }
+            case "searchPlaces":
+            {
+                var criteria = new PlaceSearchCriteria
+                {
+                    Query = payload.GetProperty("query").GetString()
+                        ?? throw new JsonException("Chybí název hledaného místa."),
+                    CityName = payload.GetProperty("cityName").GetString()
+                        ?? throw new JsonException("Chybí název vybraného města."),
+                    South = payload.GetProperty("south").GetDouble(),
+                    North = payload.GetProperty("north").GetDouble(),
+                    West = payload.GetProperty("west").GetDouble(),
+                    East = payload.GetProperty("east").GetDouble(),
+                };
+                var result = await _placeAggregator.SearchPlacesAsync(criteria);
+                await SendStructuredToAngular(new
+                {
+                    type = "databaseResponse",
+                    id = requestId,
+                    payload = new { result },
+                });
+                break;
+            }
+            case "findLinkedWikipediaTitle":
+            {
+                var osmType = payload.GetProperty("osmType").GetString()
+                    ?? throw new JsonException("Chybí typ OSM objektu.");
+                var osmId = payload.GetProperty("osmId").GetInt64();
+                var result = await _placeAggregator.FindLinkedWikipediaTitleAsync(osmType, osmId);
+                await SendStructuredToAngular(new
+                {
+                    type = "databaseResponse",
+                    id = requestId,
+                    payload = new { result },
+                });
+                break;
+            }
+            case "findWikipediaSummary":
+            {
+                var placeName = payload.GetProperty("placeName").GetString()
+                    ?? throw new JsonException("Chybí název místa.");
+                var linkedPageTitle = payload.TryGetProperty("linkedPageTitle", out var linkedPage)
+                    ? linkedPage.GetString()
+                    : null;
+                var result = await _placeAggregator.FindWikipediaSummaryAsync(placeName, linkedPageTitle);
+                await SendStructuredToAngular(new
+                {
+                    type = "databaseResponse",
+                    id = requestId,
+                    payload = new { result },
+                });
+                break;
+            }
             default:
                 throw new JsonException($"Neznámá databázová operace '{action}'.");
         }
@@ -382,7 +452,7 @@ public partial class MainPage : ContentPage
 
     private async Task SendStructuredToAngular(object obj)
     {
-        var json = JsonSerializer.Serialize(obj);
+        var json = JsonSerializer.Serialize(obj, BridgeJsonOptions);
         var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         await webView.EvaluateJavaScriptAsync($"angularReceiveStructured({JsString(b64)})");
     }

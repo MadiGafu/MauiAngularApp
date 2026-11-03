@@ -5,7 +5,7 @@ namespace MyMauiApp.Data;
 
 public sealed class TripDatabase
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -133,6 +133,52 @@ public sealed class TripDatabase
             version = 3;
         }
 
+        if (version == 3)
+        {
+            await using var transaction = await connection.BeginTransactionAsync();
+            var migrateCommand = connection.CreateCommand();
+            migrateCommand.Transaction = (SqliteTransaction)transaction;
+            migrateCommand.CommandText = """
+                CREATE TABLE Places_New (
+                    Id TEXT NOT NULL,
+                    TripId TEXT NOT NULL,
+                    Position INTEGER NOT NULL,
+                    OsmType TEXT NOT NULL,
+                    OsmId INTEGER NOT NULL,
+                    Name TEXT NOT NULL,
+                    Category TEXT NOT NULL,
+                    Address TEXT NOT NULL,
+                    Latitude REAL NOT NULL,
+                    Longitude REAL NOT NULL,
+                    WikipediaPageTitle TEXT,
+                    WikidataId TEXT,
+                    WikipediaTitle TEXT,
+                    WikipediaExtract TEXT,
+                    WikipediaUrl TEXT,
+                    PRIMARY KEY (TripId, Id),
+                    UNIQUE (TripId, OsmType, OsmId),
+                    FOREIGN KEY (TripId) REFERENCES Trips(Id) ON DELETE CASCADE
+                );
+
+                INSERT INTO Places_New (
+                    Id, TripId, Position, OsmType, OsmId, Name, Category, Address, Latitude, Longitude,
+                    WikipediaPageTitle, WikidataId, WikipediaTitle, WikipediaExtract, WikipediaUrl
+                )
+                SELECT
+                    Id, TripId, Position, OsmType, OsmId, Name, Category, Address, Latitude, Longitude,
+                    WikipediaPageTitle, WikidataId, WikipediaTitle, WikipediaExtract, WikipediaUrl
+                FROM Places;
+
+                DROP TABLE Places;
+                ALTER TABLE Places_New RENAME TO Places;
+                CREATE INDEX IX_Places_TripId_Position ON Places(TripId, Position);
+                PRAGMA user_version = 4;
+                """;
+            await migrateCommand.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
+            version = 4;
+        }
+
         if (version == CurrentSchemaVersion)
         {
             return;
@@ -164,7 +210,7 @@ public sealed class TripDatabase
             );
 
             CREATE TABLE IF NOT EXISTS Places (
-                Id TEXT NOT NULL PRIMARY KEY,
+                Id TEXT NOT NULL,
                 TripId TEXT NOT NULL,
                 Position INTEGER NOT NULL,
                 OsmType TEXT NOT NULL,
@@ -179,6 +225,7 @@ public sealed class TripDatabase
                 WikipediaTitle TEXT,
                 WikipediaExtract TEXT,
                 WikipediaUrl TEXT,
+                PRIMARY KEY (TripId, Id),
                 UNIQUE (TripId, OsmType, OsmId),
                 FOREIGN KEY (TripId) REFERENCES Trips(Id) ON DELETE CASCADE
             );
@@ -197,7 +244,7 @@ public sealed class TripDatabase
             CREATE INDEX IF NOT EXISTS IX_Tasks_TripId_Position
                 ON Tasks(TripId, Position);
 
-            PRAGMA user_version = 3;
+            PRAGMA user_version = 4;
             """;
         await schemaCommand.ExecuteNonQueryAsync();
     }

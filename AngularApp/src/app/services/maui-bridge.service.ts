@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Trip } from '../models/trip';
+import { OsmSearchResult, WikipediaSummary } from '../models/osm-place';
 
 declare global {
   interface Window {
@@ -8,13 +9,13 @@ declare global {
   }
 }
 
-interface DatabaseResponse<T> {
+interface BridgeResponse<T> {
   result?: T;
   error?: string;
 }
 
 @Injectable({ providedIn: 'root' })
-export class MauiDatabaseService {
+export class MauiBridgeService {
   private readonly pendingRequests = new Map<
     string,
     { resolve: (value: unknown) => void; reject: (error: Error) => void; timeout: number }
@@ -23,8 +24,8 @@ export class MauiDatabaseService {
   constructor() {
     if (typeof window === 'undefined') return;
 
-    window.addEventListener('maui-database-response', event => {
-      const response = (event as CustomEvent<{ id?: string; payload?: DatabaseResponse<unknown> }>).detail;
+    window.addEventListener('maui-bridge-response', event => {
+      const response = (event as CustomEvent<{ id?: string; payload?: BridgeResponse<unknown> }>).detail;
       if (!response.id) return;
 
       const pending = this.pendingRequests.get(response.id);
@@ -66,9 +67,32 @@ export class MauiDatabaseService {
     return this.request<string | null>('pickTripImage', {}, 120000);
   }
 
+  searchCities(query: string): Promise<OsmSearchResult[]> {
+    return this.request('searchCities', { query }, 30000);
+  }
+
+  searchPlaces(
+    query: string,
+    cityName: string,
+    bounds: { south: number; north: number; west: number; east: number },
+  ): Promise<OsmSearchResult[]> {
+    return this.request('searchPlaces', { query, cityName, ...bounds }, 45000);
+  }
+
+  findLinkedWikipediaTitle(osmType: string, osmId: number): Promise<string | null> {
+    return this.request('findLinkedWikipediaTitle', { osmType, osmId }, 30000);
+  }
+
+  findWikipediaSummary(
+    placeName: string,
+    linkedPageTitle?: string,
+  ): Promise<WikipediaSummary | null> {
+    return this.request('findWikipediaSummary', { placeName, linkedPageTitle });
+  }
+
   private request<T>(action: string, data: object, timeoutMs = 15000): Promise<T> {
     if (!this.isMaui || typeof window === 'undefined') {
-      return Promise.reject(new Error('Databázové operace jsou dostupné pouze v aplikaci MAUI.'));
+      return Promise.reject(new Error('Požadavek je dostupný pouze v aplikaci MAUI.'));
     }
 
     const id = crypto.randomUUID();
@@ -81,7 +105,7 @@ export class MauiDatabaseService {
     return new Promise<T>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         this.pendingRequests.delete(id);
-        reject(new Error('Databáze MAUI neodpověděla včas.'));
+        reject(new Error('Most MAUI neodpověděl včas.'));
       }, timeoutMs);
       this.pendingRequests.set(id, {
         resolve: value => resolve(value as T),
