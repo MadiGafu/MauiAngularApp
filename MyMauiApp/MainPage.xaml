@@ -4,6 +4,7 @@
              Title="Plánovač itinerářů">
 
     <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Databáze" Clicked="OnOpenDatabaseFolderClicked" />
         <ToolbarItem Text="Obnovit" Clicked="OnRefreshClicked" />
     </ContentPage.ToolbarItems>
 

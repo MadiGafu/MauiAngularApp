@@ -1,4 +1,5 @@
 ﻿using Microsoft.Maui.Hosting;
+using MyMauiApp.Data;
 
 namespace MyMauiApp;
 
@@ -14,6 +15,10 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
+
+        builder.Services.AddSingleton<TripDatabase>();
+        builder.Services.AddSingleton<MainPage>();
+        builder.Services.AddSingleton<AppShell>();
 
         return builder.Build();
     }

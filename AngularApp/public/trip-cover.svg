@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-label="Krajina jako obálka výletu">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1">
+      <stop stop-color="#b9e2d0"/>
+      <stop offset="1" stop-color="#f6e8c7"/>
+    </linearGradient>
+    <linearGradient id="hill" x2="0" y2="1">
+      <stop stop-color="#6ba784"/>
+      <stop offset="1" stop-color="#23664d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#sky)"/>
+  <circle cx="910" cy="145" r="62" fill="#fff2c7"/>
+  <path d="M0 390 260 155l225 210 180-175 330 300v110H0z" fill="#83b49a"/>
+  <path d="m250 165 82 87-72-35-63 39zM665 195l97 103-85-44-78 46z" fill="#f3f5e9"/>
+  <path d="M0 455q180-130 360 0t360 0 480 0v145H0z" fill="url(#hill)"/>
+  <path d="M0 520q180-90 360 0t360 0 480 0" fill="none" stroke="#d4e5cf" stroke-width="8" opacity=".8"/>
+  <g fill="#f9f6e9" opacity=".9">
+    <circle cx="115" cy="120" r="5"/><circle cx="550" cy="90" r="4"/><circle cx="1080" cy="290" r="5"/>
+  </g>
+</svg>

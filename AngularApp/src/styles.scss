@@ -1,1 +1,299 @@
 /* You can add global styles to this file, and also import other style files */
+@import 'leaflet/dist/leaflet.css';
+
+.itinerary-map-marker {
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #1769aa;
+  box-shadow: 0 1px 5px #0008;
+  color: #fff;
+  font-weight: 700;
+}
+
+body {
+  margin: 0;
+  color: #17231e;
+  background: #f5f7f5;
+}
+
+button,
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #176b4d;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.secondary-button {
+  background: #eef2ef;
+  color: #34443b;
+}
+
+.projects-page {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.projects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 12px 0 28px;
+}
+
+.projects-header h1 {
+  margin: 4px 0;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #176b4d;
+  font-size: .75rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+}
+
+.projects-intro,
+.project-dates,
+.project-destinations,
+.field-hint {
+  color: #68766e;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+.project-card {
+  overflow: hidden;
+  border: 1px solid #e3e9e4;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 14px #1833260d;
+}
+
+.project-cover {
+  display: block;
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  background: #e8efe9;
+}
+
+.project-card-content {
+  padding: 18px;
+}
+
+.project-card-content h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.project-dates,
+.project-description,
+.project-destinations {
+  margin: 8px 0;
+}
+
+.project-description {
+  min-height: 3em;
+}
+
+.project-destinations {
+  font-size: .9rem;
+}
+
+.project-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.projects-empty {
+  max-width: 600px;
+  margin: 70px auto;
+  padding: 36px;
+  border: 1px solid #e3e9e4;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+}
+
+.projects-empty h2 {
+  margin-bottom: 8px;
+}
+
+.projects-empty p {
+  margin: 0 0 20px;
+  color: #68766e;
+}
+
+.empty-illustration {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f2eb;
+  color: #176b4d;
+  font-size: 1.8rem;
+}
+
+.project-error {
+  color: #b00020;
+}
+
+.editor-project-cover {
+  display: block;
+  width: min(100%, 360px);
+  height: 180px;
+  margin: 8px 0 20px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #e8efe9;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.image-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trip-planning-section {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #e3e9e4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.places-map-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.selected-places-panel,
+.trip-map-panel {
+  min-width: 0;
+}
+
+.selected-places-panel h4,
+.trip-map-panel h3 {
+  margin-top: 0;
+}
+
+.selected-places-list {
+  max-height: 620px;
+  margin: 0;
+  padding: 0 10px 0 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.selected-place {
+  padding: 14px 0;
+  border-bottom: 1px solid #e7ece8;
+}
+
+.selected-place-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.place-number {
+  display: grid;
+  flex: 0 0 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #176b4d;
+  color: #fff;
+  font-weight: 700;
+}
+
+.selected-place > small {
+  display: block;
+  margin: 6px 0;
+  color: #68766e;
+}
+
+.place-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.place-actions button {
+  padding: 5px 9px;
+}
+
+.itinerary-map {
+  width: 100%;
+  height: min(70vh, 680px);
+  min-height: 460px;
+  border-radius: 10px;
+  background: #e8efe9;
+}
+
+@media (max-width: 780px) {
+  .projects-header {
+    align-items: flex-start;
+  }
+
+  .places-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-places-list {
+    max-height: 360px;
+  }
+
+  .itinerary-map {
+    height: 55vh;
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 520px) {
+  .projects-header {
+    flex-direction: column;
+  }
+}

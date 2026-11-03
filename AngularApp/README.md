@@ -35,4 +35,18 @@ MSBuild při sestavení automaticky spustí produkční `ng build`, jeho statick
 npm test -- --watch=false
 ```
 
-Rozhraní používá češtinu a hash routing, aby interní navigace fungovala i při načtení z lokálního balíčku.
+Rozhraní používá češtinu a hash routing s cestou `index.html`, aby interní navigace i obnovení editoru fungovaly z lokálního balíčku bez webového serveru.
+
+## Vyhledávání míst
+
+Vyhledávání používá veřejné rozhraní Nominatim projektu OpenStreetMap. Dotazy se odesílají až po stisknutí tlačítka (nejde o automatické našeptávání), požadavky jsou omezeny na nejvýše jeden za sekundu a odpovědi obsahují odkaz na atribuci OpenStreetMap. Desktopová aplikace identifikuje požadavky vlastním User-Agentem. Veřejná služba vyžaduje připojení k internetu, odesílá jí zadaný vyhledávací dotaz a může uplatňovat vlastní limity dostupnosti.
+
+Vybraná místa lze v itineráři řadit tlačítky nahoru a dolů. Přidání, odebrání i změna pořadí se trvale uloží po stisknutí tlačítka „Uložit“.
+
+## Mapa a plánování trasy
+
+Mapa používá Leaflet a dlaždice OpenStreetMap s uvedením zdroje přímo v mapě. Tlačítko pro výpočet trasy odesílá souřadnice míst v aktuálním pořadí do veřejné demonstrační služby OSRM (profil jízdy autem) a zobrazuje získanou geometrii, vzdálenost a odhad času. Výsledek trasy se počítá znovu podle uložených míst a není trvale uložen; OSRM demo server nemá záruku dostupnosti. Zobrazení mapy a výpočet trasy vyžadují připojení k internetu.
+
+## Informace z Wikipedie
+
+U každého vybraného místa lze vyhledat český článek na Wikipedii podle přesného názvu. Pokud přesný článek neexistuje, aplikace nezobrazí podobně pojmenovanou stránku z jiné lokality. Shrnutí lze v rozhraní skrýt a znovu zobrazit; načtená informace se uloží do itineráře po stisknutí tlačítka „Uložit“. Text je označen licencí CC BY-SA 4.0 a odkazuje na původní článek. Vyhledání a načtení článku probíhá přes veřejné API Wikipedie a vyžaduje internetové připojení.

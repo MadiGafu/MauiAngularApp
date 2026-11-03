@@ -42,6 +42,10 @@ export class AppComponent implements OnInit {
       try {
         const json = decodeURIComponent(escape(atob(b64)));
         const data = JSON.parse(json);
+        if (data.type === 'databaseResponse') {
+          window.dispatchEvent(new CustomEvent('maui-database-response', { detail: data }));
+          return;
+        }
         this.zone.run(() => this.messages.push(`Z MAUI [${data.type || 'neznámý typ'}]`));
       } catch (error) {
         console.error('Nepodařilo se zpracovat zprávu z MAUI.', error);

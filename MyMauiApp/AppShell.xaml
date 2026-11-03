@@ -8,8 +8,8 @@
     Title="Plánovač itinerářů">
 
     <ShellContent
+        x:Name="MainShellContent"
         Title="Plánovač itinerářů"
-        ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 
 </Shell>
