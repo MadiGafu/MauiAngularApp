@@ -32,6 +32,42 @@ public sealed class NominatimProvider(HttpClient httpClient)
             .ToArray();
     }
 
+    public Task<IReadOnlyList<Place>> SearchWithinCityAsync(
+        string query,
+        PlaceSearchCriteria criteria,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            throw new ArgumentException("Zadejte název hledaného místa.", nameof(query));
+        }
+
+        var uri = new UriBuilder("https://nominatim.openstreetmap.org/search")
+        {
+            Query = string.Join("&", new Dictionary<string, string>
+            {
+                ["q"] = query.Trim(),
+                ["format"] = "jsonv2",
+                ["addressdetails"] = "1",
+                ["extratags"] = "1",
+                ["namedetails"] = "1",
+                ["limit"] = "10",
+                ["viewbox"] = string.Join(",", new[]
+                {
+                    Format(criteria.West),
+                    Format(criteria.North),
+                    Format(criteria.East),
+                    Format(criteria.South),
+                }),
+                ["bounded"] = "1",
+            }.Select(parameter =>
+                $"{WebUtility.UrlEncode(parameter.Key)}={WebUtility.UrlEncode(parameter.Value)}")),
+        };
+
+        ValidateBounds(criteria);
+        return GetSearchResultsAsync(uri.Uri, cancellationToken);
+    }
+
     public async Task<string?> FindLinkedCzechWikipediaTitleAsync(
         string osmType,
         long osmId,
@@ -59,25 +95,45 @@ public sealed class NominatimProvider(HttpClient httpClient)
         Uri uri,
         CancellationToken cancellationToken)
     {
-        await _requestGate.WaitAsync(cancellationToken);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        await _requestGate.WaitAsync(timeout.Token);
         try
         {
             var wait = TimeSpan.FromSeconds(1) - (DateTimeOffset.UtcNow - _lastRequestAt);
             if (_lastRequestAt != default && wait > TimeSpan.Zero)
             {
-                await Task.Delay(wait, cancellationToken);
+                await Task.Delay(wait, timeout.Token);
             }
 
-            using var response = await httpClient.GetAsync(uri, cancellationToken);
+            using var response = await httpClient.GetAsync(uri, timeout.Token);
             _lastRequestAt = DateTimeOffset.UtcNow;
             response.EnsureSuccessStatusCode();
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return await JsonSerializer.DeserializeAsync<List<Place>>(stream, JsonOptions, cancellationToken)
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+            return await JsonSerializer.DeserializeAsync<List<Place>>(stream, JsonOptions, timeout.Token)
                 ?? [];
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Vyhledávání míst přes Nominatim překročilo časový limit 10 sekund.", exception);
         }
         finally
         {
             _requestGate.Release();
+        }
+    }
+
+    private static string Format(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+
+    private static void ValidateBounds(PlaceSearchCriteria criteria)
+    {
+        if (!double.IsFinite(criteria.South) || !double.IsFinite(criteria.North) ||
+            !double.IsFinite(criteria.West) || !double.IsFinite(criteria.East) ||
+            criteria.South >= criteria.North || criteria.West >= criteria.East ||
+            criteria.South < -90 || criteria.North > 90 ||
+            criteria.West < -180 || criteria.East > 180)
+        {
+            throw new ArgumentException("Hranice vybraného města nejsou platné.", nameof(criteria));
         }
     }
 }

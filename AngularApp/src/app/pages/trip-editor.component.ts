@@ -494,7 +494,8 @@ export class TripEditorComponent implements OnInit, OnDestroy {
 
     this.isSearching = true;
     this.searchError = '';
-    this.searchMessage = '';
+    this.searchMessage =
+      'Hledám v OpenStreetMap. Pokud Overpass neodpoví do 5 sekund, použiji náhradní vyhledávání.';
     this.searchResults = [];
 
     try {
@@ -504,7 +505,10 @@ export class TripEditorComponent implements OnInit, OnDestroy {
         : 'Pro zadaný dotaz nebyla nalezena žádná místa.';
     } catch (error) {
       console.error('Vyhledávání míst v OpenStreetMap selhalo.', error);
-      this.searchError = 'Místa se nepodařilo načíst. Zkontrolujte připojení k internetu a zkuste to znovu.';
+      this.searchMessage = '';
+      this.searchError = error instanceof Error
+        ? error.message
+        : 'Vyhledávání míst se nepodařilo dokončit. Zkuste to prosím znovu.';
     } finally {
       this.isSearching = false;
     }

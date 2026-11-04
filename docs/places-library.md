@@ -39,6 +39,7 @@ aplikace ani vývojový server Angularu potřeby nejsou.
 Vyhledávání používá veřejné endpointy Nominatim, Overpass API a české Wikipedie,
 proto vyžaduje připojení k internetu. Poskytovatel Nominatim omezuje frekvenci
 na jeden požadavek za sekundu a odesílá identifikaci aplikace. Overpass omezuje
-dotaz hranicemi vybraného města a dobou čekání 25 sekund. Veřejné služby mají
+dotaz hranicemi vybraného města; aplikace čeká na Overpass nejdéle 5 sekund a
+při nedostupnosti použije omezené vyhledávání Nominatim. Veřejné služby mají
 vlastní pravidla dostupnosti a používání; při růstu zátěže bude potřeba vlastní
 nebo smluvně zajištěný endpoint.

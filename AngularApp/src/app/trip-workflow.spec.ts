@@ -184,6 +184,40 @@ describe('Itinerary workflow', () => {
     expect(bridge.findWikipediaSummary).toHaveBeenCalledWith('Pražský hrad', undefined);
   });
 
+  it('shows search progress and a specific error while place search is unavailable', async () => {
+    const store = TestBed.inject(TripStore);
+    const trip = await store.addEmpty();
+    const harness = await RouterTestingHarness.create();
+    const editor = await harness.navigateByUrl(`/trip/${trip.id}`, TripEditorComponent);
+    const places = TestBed.inject(OpenStreetMapService);
+    spyOn(console, 'error');
+    let rejectSearch!: (error: Error) => void;
+    spyOn(places, 'searchWithinCity').and.returnValue(
+      new Promise((_resolve, reject) => { rejectSearch = reject; }),
+    );
+    editor.trip!.city = {
+      osmType: 'relation',
+      osmId: 1,
+      name: 'Praha',
+      address: 'Praha, Česko',
+      latitude: 50.08,
+      longitude: 14.43,
+      boundingBox: [50, 50.2, 14.2, 14.7],
+    };
+    editor.placeQuery = 'hrad';
+    const search = editor.searchPlaces();
+
+    expect(editor.isSearching).toBeTrue();
+    expect(editor.searchMessage).toContain('náhradní vyhledávání');
+
+    rejectSearch(new Error('Vyhledávání míst je momentálně přetížené. Zkuste to prosím za chvíli.'));
+    await search;
+
+    expect(editor.isSearching).toBeFalse();
+    expect(editor.searchMessage).toBe('');
+    expect(editor.searchError).toContain('přetížené');
+  });
+
   it('creates, saves, reloads, and deletes an itinerary', async () => {
     const harness = await RouterTestingHarness.create();
     const list = await harness.navigateByUrl('/', TripListComponent);

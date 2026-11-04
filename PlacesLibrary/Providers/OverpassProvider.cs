@@ -9,6 +9,7 @@ namespace PlacesLibrary.Providers;
 public sealed class OverpassProvider(HttpClient httpClient) : IPlaceProvider
 {
     private const string Endpoint = "https://overpass-api.de/api/interpreter";
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
     public async Task<IReadOnlyList<Place>> SearchAsync(
         PlaceSearchCriteria criteria,
@@ -34,14 +35,16 @@ public sealed class OverpassProvider(HttpClient httpClient) : IPlaceProvider
             out center tags;
             """;
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(RequestTimeout);
         using var content = new StringContent(
             $"data={Uri.EscapeDataString(query)}",
             Encoding.UTF8,
             "application/x-www-form-urlencoded");
-        using var response = await httpClient.PostAsync(Endpoint, content, cancellationToken);
+        using var response = await httpClient.PostAsync(Endpoint, content, timeout.Token);
         response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token);
         var places = new List<Place>();
 
         if (!document.RootElement.TryGetProperty("elements", out var elements))

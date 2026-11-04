@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using PlacesLibrary.Models;
 using PlacesLibrary.Providers;
 
@@ -29,12 +30,57 @@ public sealed class PlaceAggregator(
         PlaceSearchCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var results = await overpass.SearchAsync(criteria, cancellationToken);
+        IReadOnlyList<Place> results;
+        try
+        {
+            results = await overpass.SearchAsync(criteria, cancellationToken);
+        }
+        catch (HttpRequestException) when (!cancellationToken.IsCancellationRequested)
+        {
+            results = await SearchWithFallbackAsync(criteria, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            results = await SearchWithFallbackAsync(criteria, cancellationToken);
+        }
+        catch (JsonException) when (!cancellationToken.IsCancellationRequested)
+        {
+            results = await SearchWithFallbackAsync(criteria, cancellationToken);
+        }
+
         return MergeDuplicates(results)
             .OrderByDescending(Score)
             .ThenBy(place => place.Name, StringComparer.CurrentCultureIgnoreCase)
             .Take(50)
             .ToArray();
+    }
+
+    private async Task<IReadOnlyList<Place>> SearchWithFallbackAsync(
+        PlaceSearchCriteria criteria,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await nominatim.SearchWithinCityAsync(criteria.Query, criteria, cancellationToken);
+        }
+        catch (HttpRequestException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                "Vyhledávání míst je momentálně nedostupné. Overpass ani záložní vyhledávání Nominatim neodpovídají.",
+                exception);
+        }
+        catch (TimeoutException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                "Vyhledávání míst je momentálně přetížené. Zkuste to prosím za chvíli.",
+                exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                "Vyhledávání míst bylo přerušeno. Zkuste to prosím znovu.",
+                exception);
+        }
     }
 
     public Task<string?> FindLinkedWikipediaTitleAsync(
